@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>13枚のコイン天秤ゲーム</title>
+<style>
+body { font-family: sans-serif; text-align: center; background:#f5f5f5; }
+h1 { margin-top: 10px; }
+#controls { margin: 10px; }
+#scale { position: relative; margin: 30px auto; width: 500px; height: 260px; }
+#stand { position:absolute; left:245px; top:120px; width:10px; height:100px; background:#444; }
+#base { position:absolute; left:200px; top:220px; width:100px; height:12px; background:#444; border-radius:6px; }
+#beam { position: absolute; top:120px; left:100px; width:300px; height:6px; background:#666; transform-origin: center; transition: transform 0.4s; }
+.pan { position: absolute; top:150px; width:160px; min-height:60px; border:2px solid #555; border-radius:8px; background:#eee; display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; padding:4px; }
+#leftPan { left:40px; }
+#rightPan { right:40px; }
+.coin { width:36px; height:36px; border-radius:50%; background:gold; display:flex; align-items:center; justify-content:center; cursor:grab; margin:4px; font-weight:bold; }
+#coins { margin-top: 10px; display:flex; flex-wrap:wrap; justify-content:center; }
+#result { font-weight: bold; margin-top: 10px; }
+#answer { margin-top:15px; }
+button { padding:6px 14px; margin:4px; }
+</style>
+</head>
+<body>
+<h1>13枚のコイン 天秤ゲーム</h1>
+<div id="controls">
+  残り使用回数：<span id="remain">3</span>
+  <button onclick="weigh()">天秤にかける</button>
+  <button onclick="resetGame()">リセット</button>
+</div>
+
+<div id="scale">
+  <div id="beam"></div>
+  <div id="stand"></div>
+  <div id="base"></div>
+  <div id="leftPan" class="pan"></div>
+  <div id="rightPan" class="pan"></div>
+</div>
+
+<div id="result">天秤は水平</div>
+
+<h3>コイン</h3>
+<div id="coins"></div>
+
+<div id="answer" style="display:none;">
+  <h3>重さが違うコインはどれ？</h3>
+  <select id="answerSelect"></select>
+  <button onclick="checkAnswer()">決定</button>
+</div>
+
+<script>
+const COIN_COUNT = 13;
+let remaining;
+let fake;
+
+const left = new Set();
+const right = new Set();
+
+function init() {
+  remaining = 3;
+  fake = { index: Math.floor(Math.random()*COIN_COUNT), heavy: Math.random()<0.5 };
+  left.clear(); right.clear();
+  document.getElementById('remain').textContent = remaining;
+  document.getElementById('result').textContent = '天秤は水平';
+  document.getElementById('beam').style.transform = 'rotate(0deg)';
+  document.getElementById('coins').innerHTML = '';
+  document.getElementById('leftPan').innerHTML = '';
+  document.getElementById('rightPan').innerHTML = '';
+  document.getElementById('answer').style.display = 'none';
+  document.getElementById('answerSelect').innerHTML = '';
+
+  for(let i=0;i<COIN_COUNT;i++){
+    const c = document.createElement('div');
+    c.className = 'coin';
+    c.textContent = i+1;
+    c.draggable = true;
+    c.dataset.index = i;
+    c.ondragstart = e => e.dataTransfer.setData('coin', i);
+    document.getElementById('coins').appendChild(c);
+  }
+}
+
+['leftPan','rightPan','coins'].forEach(id => {
+  const area = document.getElementById(id);
+  area.ondragover = e => e.preventDefault();
+  area.ondrop = e => {
+    const i = Number(e.dataTransfer.getData('coin'));
+    moveCoin(i, id);
+  };
+});
+
+function moveCoin(i, target) {
+  left.delete(i); right.delete(i);
+  if (target === 'leftPan') left.add(i);
+  if (target === 'rightPan') right.add(i);
+  renderCoins();
+}
+
+function renderCoins() {
+  document.getElementById('leftPan').innerHTML = '';
+  document.getElementById('rightPan').innerHTML = '';
+  document.getElementById('coins').innerHTML = '';
+
+  for(let i=0;i<COIN_COUNT;i++){
+    const c = document.createElement('div');
+    c.className = 'coin'; c.textContent = i+1; c.draggable = true; c.dataset.index = i;
+    c.ondragstart = e => e.dataTransfer.setData('coin', i);
+
+    if (left.has(i)) document.getElementById('leftPan').appendChild(c);
+    else if (right.has(i)) document.getElementById('rightPan').appendChild(c);
+    else document.getElementById('coins').appendChild(c);
+  }
+}
+
+function weight(set) {
+  let w = 0;
+  set.forEach(i => { w += (i === fake.index ? (fake.heavy ? 1.1 : 0.9) : 1); });
+  return w;
+}
+
+function weigh() {
+  if (remaining <= 0) return;
+  remaining--;
+  document.getElementById('remain').textContent = remaining;
+
+  const lw = weight(left);
+  const rw = weight(right);
+  let angle = 0;
+  let text = '天秤は水平';
+  if (lw > rw) { angle = -12; text = '左に傾いた'; }
+  if (lw < rw) { angle = 12; text = '右に傾いた'; }
+
+  document.getElementById('beam').style.transform = `rotate(${angle}deg)`;
+  document.getElementById('result').textContent = text;
+
+  if (remaining === 0) showAnswer();
+}
+
+function showAnswer() {
+  const sel = document.getElementById('answerSelect');
+  sel.innerHTML = '';
+  for(let i=0;i<COIN_COUNT;i++){
+    const o = document.createElement('option');
+    o.value = i; o.textContent = 'コイン' + (i+1);
+    sel.appendChild(o);
+  }
+  document.getElementById('answer').style.display = 'block';
+}
+
+function checkAnswer() {
+  const i = Number(document.getElementById('answerSelect').value);
+  alert(i === fake.index ? '正解！' : '不正解…');
+}
+
+function resetGame() { init(); }
+
+init();
+</script>
+</body>
+</html>
